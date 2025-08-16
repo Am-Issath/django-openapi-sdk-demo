@@ -1,0 +1,63 @@
+
+name: API Pipeline
+on:
+  push:
+    branches: [ main ]
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Install deps
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+
+      - name: Export schema
+        run: python manage.py spectacular --file openapi.yaml
+
+      - name: Download last release schema (example URL - replace)
+        run: |
+          curl -fL -o openapi-old.yaml https://example.com/releases/latest/openapi.yaml || echo "No previous schema found"
+
+      - name: Check breaking changes (if previous schema exists)
+        run: |
+          if [ -f openapi-old.yaml ]; then
+            docker run --rm -v ${PWD}:/specs openapitools/openapi-diff:latest               /specs/openapi-old.yaml /specs/openapi.yaml
+          else
+            echo "Skipping diff (no previous schema)"
+          fi
+
+      - name: Generate TypeScript SDK
+        run: |
+          docker run --rm -v ${PWD}:/local openapitools/openapi-generator-cli generate             -i /local/openapi.yaml -g typescript-fetch -o /local/clients/ts-fetch
+
+      - name: Generate Python SDK
+        run: |
+          docker run --rm -v ${PWD}:/local openapitools/openapi-generator-cli generate             -i /local/openapi.yaml -g python -o /local/clients/python
+
+      # Example publish steps (disabled by default)
+      # - name: Publish TS SDK to npm
+      #   run: |
+      #     cd clients/ts-fetch
+      #     npm version patch
+      #     npm publish
+      #   env:
+      #     NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+      #
+      # - name: Publish Python SDK to PyPI
+      #   run: |
+      #     python -m pip install build twine
+      #     cd clients/python
+      #     python -m build
+      #     twine upload dist/*
+      #   env:
+      #     TWINE_USERNAME: __token__
+      #     TWINE_PASSWORD: ${{ secrets.PYPI_TOKEN }}

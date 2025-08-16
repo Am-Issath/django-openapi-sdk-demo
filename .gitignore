@@ -1,0 +1,23 @@
+
+# Python
+__pycache__/
+*.pyc
+.venv/
+.env
+
+# Django
+db.sqlite3
+
+# SDKs / builds
+clients/ts-fetch/
+clients/python/
+dist/
+build/
+
+# OS / editor
+.DS_Store
+.vscode/
+.idea/
+
+# PyPI
+*.egg-info/
